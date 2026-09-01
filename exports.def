@@ -1,4 +1,4 @@
-LIBRARY	"llde_misc_additions"
+LIBRARY	"AveSithisEngineFixes"
 EXPORTS
 OBSEPlugin_Query
 OBSEPlugin_Load

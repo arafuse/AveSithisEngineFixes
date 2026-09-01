@@ -118,7 +118,7 @@
     <ClInclude Include="..\obse\StdAfx.h">
       <Filter>obse</Filter>
     </ClInclude>
-    <ClInclude Include="..\xOBSE\obse\Detours\detours.h" />
+    <ClInclude Include="..\obse\Detours\detours.h" />
     <ClInclude Include="Hooks.h" />
     <ClInclude Include="..\obse\obse_common\SafeWrite.h" />
     <ClInclude Include="..\obse\obse\NiObjects.h">
@@ -139,7 +139,7 @@
     <None Include="exports.def" />
   </ItemGroup>
   <ItemGroup>
-    <Library Include="..\xOBSE\obse\Detours\detours.lib" />
+    <Library Include="..\obse\Detours\detours.lib" />
     <Library Include="libs\zlibstatic.lib" />
   </ItemGroup>
 </Project>
