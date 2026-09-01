@@ -228,6 +228,57 @@ void __declspec(naked) FixKnockoutActorNullCharProxy(void) {
 	}
 }
 
+static UInt32 CharProxyImpulse = 0x005EA350;
+
+/*
+ The same missing null check as FixKnockoutActorNullCharProxy, in three more spots. sub_655590 and sub_655BF0 are MiddleHighProcess/HighProcess virtuals (vtable slots +560h and +564h of both classes; KnockoutActor is +2F0h of the same two vtables), and both are live: 6 and 4 dispatch sites.
+ Each fetches the target actor's Havok character proxy with MobileObject_GetCharProxy and hands it straight to sub_5EA350 as 'this' with no check. sub_5EA350 does "mov esi,ecx / mov ecx,[esi+364h]" on entry, the same offset sub_891440 faulted on, so a proxy-less actor produces an identical access violation reading 00000364 under a different call stack.
+ sub_5EA350 only pokes the two rigid bodies at [proxy+364h] and [proxy+368h]. With no proxy there is nothing to act on, so skip just that call and let the rest of each function run unchanged: the result of sub_531D80 in the two sub_655BF0 sites is still needed by the sub_88D0E0 call that follows.
+ Each hook overwrites the 8 byte "push <reg> / mov ecx,<proxy> / call sub_5EA350" sequence; the 3 trailing bytes are orphaned but no branch in the binary targets them.
+ */
+
+static UInt32 NullCharProxyImpulseRetn_655590 = 0x0065585A;
+void __declspec(naked) FixNullCharProxyImpulse_655590(void) { // hooks 00655852, proxy in eax
+	__asm {
+		test eax, eax
+		jz noproxy
+		push ebx
+		mov ecx, eax
+		call [CharProxyImpulse]
+
+	noproxy:
+		jmp [NullCharProxyImpulseRetn_655590]
+	}
+}
+
+static UInt32 NullCharProxyImpulseRetn_655BF0_A = 0x00655E35;
+void __declspec(naked) FixNullCharProxyImpulse_655BF0_A(void) { // hooks 00655E2D, proxy in ebp
+	__asm {
+		test ebp, ebp
+		jz noproxy
+		push edi
+		mov ecx, ebp
+		call [CharProxyImpulse]
+
+	noproxy:
+		jmp [NullCharProxyImpulseRetn_655BF0_A]
+	}
+}
+
+static UInt32 NullCharProxyImpulseRetn_655BF0_B = 0x00655F72;
+void __declspec(naked) FixNullCharProxyImpulse_655BF0_B(void) { // hooks 00655F6A, proxy in ebp
+	__asm {
+		test ebp, ebp
+		jz noproxy
+		push esi
+		mov ecx, ebp
+		call [CharProxyImpulse]
+
+	noproxy:
+		jmp [NullCharProxyImpulseRetn_655BF0_B]
+	}
+}
+
 void InstallZlibHook() {
 	WriteRelJump(0x00742490, (UInt32)&zlib_InflateInitEx);
 	WriteRelJump(0x00743970, (UInt32)&zlib_InflateEnd);
@@ -405,6 +456,9 @@ void InstallHooks() {
 	WriteRelJump(0x004DC070, (UInt32)&FixShouldRespawnNullCheckRoutine);
 	WriteRelJump(0x005F8025, (UInt32)&FixNoProcessActorAccess);
 	WriteRelJump(0x00654474, (UInt32)&FixKnockoutActorNullCharProxy);
+	WriteRelJump(0x00655852, (UInt32)&FixNullCharProxyImpulse_655590);
+	WriteRelJump(0x00655E2D, (UInt32)&FixNullCharProxyImpulse_655BF0_A);
+	WriteRelJump(0x00655F6A, (UInt32)&FixNullCharProxyImpulse_655BF0_B);
 	WriteRelCall(0x00666615, (UInt32)&getNumberActivePotion_HOOK);
 	WriteRelJump(0x0052417E, 0x0052418D );   //Allow Face Textures for ESP defined NPCs
 	WriteRelJump(0x0042F7EA, (UInt32)&Hook_BSALoadFromESP);
