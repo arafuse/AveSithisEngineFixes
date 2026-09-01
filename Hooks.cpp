@@ -207,6 +207,27 @@ void __declspec(naked) FixNoProcessActorAccess(void) {
 		}
 }
 
+static UInt32 KnockoutActorGetCharProxy = 0x0065A2C0; // MobileObject_GetCharProxy
+static UInt32 KnockoutActorProxyOk = 0x00654479;      // mov esi, eax  (proxy is valid, resume)
+static UInt32 KnockoutActorRetn = 0x00654505;         // epilogue of this same branch (pop edi / pop esi / cookie check)
+
+void __declspec(naked) FixKnockoutActorNullCharProxy(void) {
+	/*
+	 MiddleHighProcess_KnockoutActor calls MobileObject_GetCharProxy at 00654474 and passes the result straight to sub_5E1500 as 'this' without checking it. Every comparable call site in the engine does check: sub_5F0270 runs the identical GetCharProxy -> sub_5E1500 sequence but bails on null at 005F0281.
+	 GetCharProxy returns null when the actor has no process, or has one whose Havok character proxy was never created (no 3D loaded: disabled ref, unloaded cell, AI-less marker actor, mid-load). sub_891440 then faults on [NULL+364h]. Reported through PushActorAway.
+	 With no character proxy there is no rigid body to receive the impulse, so skip to the epilogue of this branch, which is what the guarded call sites do.
+	 */
+	__asm {
+		call [KnockoutActorGetCharProxy]
+		test eax, eax
+		jz noproxy
+		jmp [KnockoutActorProxyOk]
+
+	noproxy:
+		jmp [KnockoutActorRetn]
+	}
+}
+
 void InstallZlibHook() {
 	WriteRelJump(0x00742490, (UInt32)&zlib_InflateInitEx);
 	WriteRelJump(0x00743970, (UInt32)&zlib_InflateEnd);
@@ -383,6 +404,7 @@ void InstallHooks() {
 	WriteRelJump(0x0046FDDE, (UInt32)&FixTESSpellListInfiniteLoad1);
 	WriteRelJump(0x004DC070, (UInt32)&FixShouldRespawnNullCheckRoutine);
 	WriteRelJump(0x005F8025, (UInt32)&FixNoProcessActorAccess);
+	WriteRelJump(0x00654474, (UInt32)&FixKnockoutActorNullCharProxy);
 	WriteRelCall(0x00666615, (UInt32)&getNumberActivePotion_HOOK);
 	WriteRelJump(0x0052417E, 0x0052418D );   //Allow Face Textures for ESP defined NPCs
 	WriteRelJump(0x0042F7EA, (UInt32)&Hook_BSALoadFromESP);
